@@ -1669,15 +1669,15 @@ $('#nextBtn').onclick = () => {
   pending = { img: item.img, isUser: true };
   $('#dlgTitle').textContent = `Puzzle (${playlistIndex + 1} of ${playlist.length})`;
   regenCuts();
-  toast(`Картинка ${playlistIndex + 1} of ${playlist.length}`);
+  toast(`Image ${playlistIndex + 1} of ${playlist.length}`);
 };
 
 $('#forgetBtn').onclick = async () => {
   if (pending && !pending.isUser) {
     pending = { img: makeRandomImage(), isUser: false };
-    $('#dlgTitle').textContent = 'Случайная картинка';
+    $('#dlgTitle').textContent = 'Generate image';
     regenCuts();
-    toast('Новая случайная картинка');
+    toast('An image was generated');
     return;
   }
 
