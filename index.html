@@ -957,7 +957,7 @@ function layoutPieces(list, W, H, rotation) {
     if (rotation) { const m = Math.max(p.bw, p.bh); mw = Math.max(mw, m); mh = mw; }
     else { mw = Math.max(mw, p.bw); mh = Math.max(mh, p.bh); }
   });
-  const gap = Math.min(mw, mh) * .3, rowH = mh * 1.06, colW = mw * 1.06;
+  const gap = Math.min(mw, mh) * .3, rowH = mh * 1.01, colW = mw * 1.01;
   const stepX = mw * .6, stepY = mh * .6;
   let idx = 0, k = 0;
   while (idx < list.length && k < 200) {
