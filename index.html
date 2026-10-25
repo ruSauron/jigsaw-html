@@ -556,14 +556,15 @@ function isOutOfBounds(pts, cols, rows) {
   return false;
 }
 
-function makeTabEdgePoints(A, B, sign, baseTabRatio) {
+function makeTabEdgePoints(A, B, sign, baseTabRatio, tabScale = 1.0) {
   const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy);
   const ux = dx / L, uy = dy / L;
   const nx = -uy * sign, ny = ux * sign;
   const pt = (s, h) => ({ x: A.x + ux * (s * L) + nx * (h * L), y: A.y + uy * (s * L) + ny * (h * L) });
 
   const minScale = 0.85, maxScale = 1.3;
-  const sizeScale = minScale + Math.random() * (maxScale - minScale);
+  // Масштабируем размер выступа с учётом tabScale
+  const sizeScale = (minScale + Math.random() * (maxScale - minScale)) * tabScale;
   const tabH = baseTabRatio * sizeScale;
   const tabW = 0.32 * sizeScale;
   const sc = 0.5 + (Math.random() * 2 - 1) * 0.04;
@@ -634,15 +635,27 @@ function buildEdges(isVertical, P, cols, rows, style, param, placedEdges) {
         edges[r][c] = [{ x: A.x, y: A.y }, { x: B.x, y: B.y }];
       } else if (style === 'tabs') {
         let edge = null, edgeOk = false;
-        for (let tr = 0; tr < 70 && !edgeOk; tr++) {
-          const sign = Math.random() < 0.5 ? 1 : -1;
-          edge = makeTabEdgePoints(A, B, sign, param);
+        let tabScale = 1.0;
+        let collidesCount = 0;
+
+        for (let tr = 0; tr < 80 && !edgeOk; tr++) {
+          const sign = (tr % 2 === 0) ? 1 : -1;
+          edge = makeTabEdgePoints(A, B, sign, param, tabScale);
           if (hasSelfIntersection(edge) || isOutOfBounds(edge, cols, rows)) continue;
+
           let collides = false;
           for (let k = 0; k < placedEdges.length; k++) {
             if (edgesIntersect(edge, placedEdges[k])) { collides = true; break; }
           }
-          if (!collides) edgeOk = true;
+          if (!collides) {
+            edgeOk = true;
+          } else {
+            collidesCount++;
+            // Если проверили оба направления выступа и они пересекаются — уменьшаем на 10%
+            if (collidesCount % 2 === 0) {
+              tabScale *= 0.9;
+            }
+          }
         }
         if (!edgeOk) return null;
         edges[r][c] = edge;
@@ -677,6 +690,8 @@ function buildEdges(isVertical, P, cols, rows, style, param, placedEdges) {
 function generateCuts(cols, rows, style = 'tabs', param = 0.30) {
   if (style === 'tabs') {
     const maxJitter = 0.18;
+    let curParam = param;
+
     for (let restart = 0; restart < 40; restart++) {
       const P = [];
       for (let r = 0; r <= rows; r++) {
@@ -689,12 +704,14 @@ function generateCuts(cols, rows, style = 'tabs', param = 0.30) {
         }
       }
       const placedEdges = [];
-      const H = buildEdges(false, P, cols, rows, style, param, placedEdges);
-      if (!H) continue;
-      const V = buildEdges(true, P, cols, rows, style, param, placedEdges);
-      if (!V) continue;
-      return { cols, rows, style, param, H, V };
+      const H = buildEdges(false, P, cols, rows, style, curParam, placedEdges);
+      if (!H) { curParam *= 0.9; continue; }
+      const V = buildEdges(true, P, cols, rows, style, curParam, placedEdges);
+      if (!V) { curParam *= 0.9; continue; }
+      return { cols, rows, style, param: curParam, H, V };
     }
+    // Вместо превращения в прямоугольники пробуем собрать с уменьшенным параметром
+    return generateCuts(cols, rows, 'tabs', Math.max(0.12, curParam * 0.9));
   } else {
     const irr = param;
     const P = [];
@@ -716,7 +733,6 @@ function generateCuts(cols, rows, style = 'tabs', param = 0.30) {
     const V = buildEdges(true, P, cols, rows, style, param, []);
     return { cols, rows, style, param, H, V };
   }
-  return generateCuts(cols, rows, 'poly', 0);
 }
 
 function piecePolyUnit(cuts, r, c) {
