@@ -42,7 +42,7 @@
   <button class="mi" data-act="new">🆕 <span>New game…</span></button>
   <button class="mi" data-act="upload">📁 <span>Load custom images…</span></button>
   <div class="h-px bg-white/10"></div>
-<button class="mi" data-act="join">🔗 <span>Merge adjacent pieces</span><span class="ck" id="ckJoin">✓</span></button>
+  <button class="mi" data-act="join">🔗 <span>Merge adjacent pieces</span><span class="ck" id="ckJoin">✓</span></button>
   <button class="mi" data-act="show">🖼️ <span>Show picture</span></button>
   <button class="mi" data-act="ghost">🌫️ <span>Ghost image under board</span><span class="ck" id="ckGhost"></span></button>
   <button class="mi" data-act="edges">✂️ <span>Piece edges</span><span class="ck" id="ckEdges"></span></button>
@@ -50,7 +50,7 @@
   <button class="mi" data-act="fit">🔍 <span>Fit board to view</span></button>
   <div class="h-px bg-white/10"></div>
   <div class="px-4 py-3 text-xs text-gray-300 leading-relaxed">
-<b class="text-gray-100">Mouse:</b> click & drag: move piece · double-click: rotate ↻ · right-click: rotate ↺ · wheel: zoom · drag empty space: pan board<br>
+    <b class="text-gray-100">Mouse:</b> click & drag: move piece · double-click: rotate ↻ · right-click: rotate ↺ · wheel: zoom · drag empty space: pan board<br>
     <b class="text-gray-100">Touch:</b> one finger: move piece · double-tap: rotate ↻ · two fingers: zoom/pan · hold 1s, then drag: pan board<br>
     <b class="text-gray-100">Snap:</b> pieces released nearby snap together into a group
   </div>
@@ -86,10 +86,10 @@
     </div>
 
     <div class="mb-3">
-    <div class="text-xs text-gray-300 mb-1.5 font-medium">Piece shape style:</div>
-    <div class="flex gap-2">
-      <button id="modeTabs" class="tab-btn active" type="button">🧩 Bumps</button>
-      <button id="modePoly" class="tab-btn" type="button">📐 Polygons</button>
+      <div class="text-xs text-gray-300 mb-1.5 font-medium">Piece shape style:</div>
+      <div class="flex gap-2">
+        <button id="modeTabs" class="tab-btn active" type="button">🧩 Bumps</button>
+        <button id="modePoly" class="tab-btn" type="button">📐 Polygons</button>
       </div>
     </div>
 
@@ -563,7 +563,6 @@ function makeTabEdgePoints(A, B, sign, baseTabRatio, tabScale = 1.0) {
   const pt = (s, h) => ({ x: A.x + ux * (s * L) + nx * (h * L), y: A.y + uy * (s * L) + ny * (h * L) });
 
   const minScale = 0.85, maxScale = 1.3;
-  // Масштабируем размер выступа с учётом tabScale
   const sizeScale = (minScale + Math.random() * (maxScale - minScale)) * tabScale;
   const tabH = baseTabRatio * sizeScale;
   const tabW = 0.32 * sizeScale;
@@ -651,7 +650,6 @@ function buildEdges(isVertical, P, cols, rows, style, param, placedEdges) {
             edgeOk = true;
           } else {
             collidesCount++;
-            // Если проверили оба направления выступа и они пересекаются — уменьшаем на 10%
             if (collidesCount % 2 === 0) {
               tabScale *= 0.9;
             }
@@ -710,7 +708,6 @@ function generateCuts(cols, rows, style = 'tabs', param = 0.30) {
       if (!V) { curParam *= 0.9; continue; }
       return { cols, rows, style, param: curParam, H, V };
     }
-    // Вместо превращения в прямоугольники пробуем собрать с уменьшенным параметром
     return generateCuts(cols, rows, 'tabs', Math.max(0.12, curParam * 0.9));
   } else {
     const irr = param;
@@ -772,25 +769,46 @@ function makeGhost(src) {
   return c;
 }
 
-function makeBitmap(p, src, cell) {
-  const pad = Math.ceil(cell * 0.12) + 6;
-  const c = mkCanvas(Math.ceil(p.bw + pad * 2), Math.ceil(p.bh + pad * 2)), g = c.getContext('2d');
-  const ox = c.width / 2, oy = c.height / 2;
-  g.translate(ox, oy);
+/* ================= Отрисовка детали из единого атласа ================= */
+function drawPiece(g, p, src, cell, isElevated = false) {
   g.save();
-  g.shadowColor = 'rgba(0,0,0,.65)'; g.shadowBlur = pad * .75; g.shadowOffsetY = pad * .15;
-  g.fillStyle = '#000'; g.fill(p.path);
+  g.translate(p.x, p.y);
+  if (p.a) g.rotate(p.a);
+
+  // 1. Динамическая отбрасываемая тень
+  g.save();
+  if (isElevated) {
+    g.shadowColor = 'rgba(0,0,0,0.65)';
+    g.shadowBlur = Math.max(10, cell * 0.22);
+    g.shadowOffsetY = Math.max(5, cell * 0.12);
+  } else {
+    g.shadowColor = 'rgba(0,0,0,0.42)';
+    g.shadowBlur = Math.max(4, cell * 0.08);
+    g.shadowOffsetY = Math.max(2, cell * 0.035);
+  }
+  g.fillStyle = '#000';
+  g.fill(p.path);
   g.restore();
-  g.save(); g.clip(p.path);
-  const sx0 = Math.max(0, Math.floor(p.cx - ox)), sy0 = Math.max(0, Math.floor(p.cy - oy));
-  const sx1 = Math.min(src.width, Math.ceil(p.cx + ox)), sy1 = Math.min(src.height, Math.ceil(p.cy + oy));
-  if (sx1 > sx0 && sy1 > sy0) g.drawImage(src, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 - p.cx, sy0 - p.cy, sx1 - sx0, sy1 - sy0);
-  g.lineWidth = Math.max(1.5, cell * .025); g.strokeStyle = 'rgba(255,255,255,.32)'; g.lineJoin = 'round';
+
+  // 2. Вырезка нужной области из единственного исходника-атласа
+  g.save();
+  g.clip(p.path);
+  g.drawImage(src, p.sx, p.sy, p.sw, p.sh, p.dx, p.dy, p.sw, p.sh);
+
+  // Внутренняя световая фаска
+  g.lineWidth = Math.max(1.5, cell * 0.025);
+  g.strokeStyle = 'rgba(255,255,255,0.34)';
+  g.lineJoin = 'round';
   g.stroke(p.path);
   g.restore();
-  g.lineWidth = Math.max(1, cell * .008); g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineJoin = 'round';
+
+  // 3. Внешний четкий темный контур
+  g.lineWidth = Math.max(1, cell * 0.008);
+  g.strokeStyle = 'rgba(0,0,0,0.55)';
+  g.lineJoin = 'round';
   g.stroke(p.path);
-  p.bmp = c; p.ox = ox; p.oy = oy; p.rad = Math.hypot(c.width, c.height) / 2;
+
+  g.restore();
 }
 
 /* ================= Сохранение состояния ================= */
@@ -889,6 +907,7 @@ function clearSessionStorage() {
 }
 
 function startGame({ img, isUser, cols, rows, rotation, cuts }, restoreData = null) {
+  clearDragBackground();
   const long = Math.max(img.width, img.height);
   const k = clamp(long, 1000, 2000) / long;
   const W = Math.round(img.width * k), H = Math.round(img.height * k);
@@ -899,20 +918,35 @@ function startGame({ img, isUser, cols, rows, rotation, cuts }, restoreData = nu
   const layer = mkCanvas(W, H);
   const pieces = [];
 
-  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-    const pts = piecePolyUnit(cuts, r, c).map(p => ({ x: p.x * cw, y: p.y * ch }));
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    pts.forEach(p => { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); });
-    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    const poly = pts.map(p => ({ x: p.x - cx, y: p.y - cy }));
-    const path = new Path2D();
-    poly.forEach((p, i) => i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y));
-    path.closePath();
-    const piece = { r, c, poly, path, bw: x1 - x0, bh: y1 - y0, cx, cy, x: cx, y: cy, rot: 0, a: 0, placed: false, group: null };
-    piece.group = { pieces: [piece] };
-    makeBitmap(piece, src, cell);
-    if (rotation) { piece.rot = randi(0, 3); piece.a = piece.rot * Math.PI / 2; }
-    pieces.push(piece);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const pts = piecePolyUnit(cuts, r, c).map(p => ({ x: p.x * cw, y: p.y * ch }));
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      pts.forEach(p => { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); });
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      const poly = pts.map(p => ({ x: p.x - cx, y: p.y - cy }));
+      const path = new Path2D();
+      poly.forEach((p, i) => i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y));
+      path.closePath();
+
+      const bw = x1 - x0, bh = y1 - y0;
+      const pad = Math.ceil(cell * 0.18) + 4;
+      const sx = Math.max(0, Math.floor(cx - bw / 2 - pad));
+      const sy = Math.max(0, Math.floor(cy - bh / 2 - pad));
+      const sx1 = Math.min(W, Math.ceil(cx + bw / 2 + pad));
+      const sy1 = Math.min(H, Math.ceil(cy + bh / 2 + pad));
+      const sw = sx1 - sx, sh = sy1 - sy;
+
+      const piece = {
+        r, c, poly, path, bw, bh, cx, cy,
+        sx, sy, sw, sh, dx: sx - cx, dy: sy - cy,
+        rad: Math.hypot(bw, bh) / 2 + pad,
+        x: cx, y: cy, rot: 0, a: 0, placed: false, group: null
+      };
+      piece.group = { pieces: [piece] };
+      if (rotation) { piece.rot = randi(0, 3); piece.a = piece.rot * Math.PI / 2; }
+      pieces.push(piece);
+    }
   }
 
   loose = [...pieces];
@@ -1014,6 +1048,7 @@ function computeBase() { if (game) baseScale = Math.min(VW / game.W, VH / game.H
 function updateZoomLabel() { $('#zLbl').textContent = Math.round(view.s / baseScale * 100) + '%'; }
 
 function setScale(ns, px, py) {
+  clearDragBackground();
   ns = clamp(ns, baseScale * .3, baseScale * 3);
   const wx = (px - view.x) / view.s, wy = (py - view.y) / view.s;
   view.s = ns; view.x = px - wx * ns; view.y = py - wy * ns;
@@ -1021,6 +1056,7 @@ function setScale(ns, px, py) {
 }
 function fitView() {
   if (!game) return;
+  clearDragBackground();
   let x0 = 0, y0 = 0, x1 = game.W, y1 = game.H;
   loose.forEach(p => { const r = Math.max(p.bw, p.bh) / 2; x0 = Math.min(x0, p.x - r); y0 = Math.min(y0, p.y - r); x1 = Math.max(x1, p.x + r); y1 = Math.max(y1, p.y + r); });
   const m = 16, top = 56;
@@ -1035,6 +1071,7 @@ const s2w = (x, y) => ({ x: (x - view.x) / view.s, y: (y - view.y) / view.s });
 function inView(wx, wy) { const x = wx * view.s + view.x, y = wy * view.s + view.y; return x > 0 && y > 0 && x < VW && y < VH; }
 
 function resize() {
+  clearDragBackground();
   DPR = Math.min(window.devicePixelRatio || 1, 2.5);
   VW = innerWidth; VH = innerHeight;
   cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
@@ -1042,61 +1079,140 @@ function resize() {
   requestRender();
 }
 
-/* ================= Отрисовка ================= */
+/* ================= Буфер стола (Offscreen) во время драга ================= */
+let dragCacheCanvas = null, dragCacheCtx = null;
+let isDraggingActive = false;
+
+function bakeDragBackground(activeGroup) {
+  if (!game) return;
+  if (!dragCacheCanvas) {
+    dragCacheCanvas = document.createElement('canvas');
+    dragCacheCtx = dragCacheCanvas.getContext('2d');
+  }
+  if (dragCacheCanvas.width !== cv.width || dragCacheCanvas.height !== cv.height) {
+    dragCacheCanvas.width = cv.width;
+    dragCacheCanvas.height = cv.height;
+  }
+
+  const g = dragCacheCtx;
+  const s = view.s, W = game.W, H = game.H;
+
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.setTransform(DPR * s, 0, 0, DPR * s, DPR * view.x, DPR * view.y);
+  g.imageSmoothingQuality = 'high';
+
+  // Собранная подложка и сетка
+  g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(0, 0, W, H);
+  if (showGhost) { g.globalAlpha = .6; g.drawImage(game.ghost, 0, 0, W, H); g.globalAlpha = 1; }
+  g.drawImage(game.layer, 0, 0);
+  g.lineWidth = 1.5 / s; g.strokeStyle = 'rgba(255,255,255,.3)';
+  g.setLineDash([8 / s, 5 / s]); g.strokeRect(0, 0, W, H); g.setLineDash([]);
+  if (showEdges) {
+    g.lineJoin = 'round';
+    g.lineWidth = 3 / s; g.strokeStyle = 'rgba(0,0,0,.45)'; g.stroke(game.edges);
+    g.lineWidth = 1.1 / s; g.strokeStyle = 'rgba(255,255,255,.9)'; g.stroke(game.edges);
+  }
+
+  // Отрисовка всех неподвижных лежащих кусочков (исключая активную группу)
+  const activeSet = activeGroup ? new Set(activeGroup.pieces) : null;
+  const vx0 = -view.x / s, vy0 = -view.y / s, vx1 = (VW - view.x) / s, vy1 = (VH - view.y) / s;
+
+  for (const p of loose) {
+    if (activeSet && activeSet.has(p)) continue;
+    if (p.x + p.rad < vx0 || p.x - p.rad > vx1 || p.y + p.rad < vy0 || p.y - p.rad > vy1) continue;
+    drawPiece(g, p, game.src, game.cell, false);
+  }
+
+  isDraggingActive = true;
+}
+
+function clearDragBackground() {
+  isDraggingActive = false;
+}
+
+/* ================= Основной цикл отрисовки ================= */
 let needRender = false, lastFrame = 0, panIndicator = null;
 function requestRender() { if (!needRender) { needRender = true; requestAnimationFrame(render); } }
+
 function render(now) {
   needRender = false;
   const dt = Math.min(.05, (now - (lastFrame || now)) / 1000); lastFrame = now;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, cv.width, cv.height);
   if (!game) return;
+
   const s = view.s, W = game.W, H = game.H;
   let anim = false;
-  ctx.setTransform(DPR * s, 0, 0, DPR * s, DPR * view.x, DPR * view.y);
-  ctx.imageSmoothingQuality = 'high';
 
-  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, 0, W, H);
-  if (showGhost) { ctx.globalAlpha = .6; ctx.drawImage(game.ghost, 0, 0, W, H); ctx.globalAlpha = 1; }
-  ctx.drawImage(game.layer, 0, 0);
-  ctx.lineWidth = 1.5 / s; ctx.strokeStyle = 'rgba(255,255,255,.3)';
-  ctx.setLineDash([8 / s, 5 / s]); ctx.strokeRect(0, 0, W, H); ctx.setLineDash([]);
-  if (showEdges) {
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 3 / s; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.stroke(game.edges);
-    ctx.lineWidth = 1.1 / s; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke(game.edges);
-  }
-
-  const blink = .5 + .5 * Math.sin(now / 160);
-  if (hint) {
-    ctx.save(); ctx.translate(hint.cx, hint.cy);
-    ctx.fillStyle = `rgba(255,215,0,${.12 + .4 * blink})`; ctx.fill(hint.path);
-    ctx.lineWidth = 3 / s; ctx.strokeStyle = `rgba(255,215,0,${.4 + .6 * blink})`; ctx.stroke(hint.path);
-    ctx.restore(); anim = true;
-  }
-
-  flashes = flashes.filter(f => now - f.t < 650);
-  flashes.forEach(f => {
-    const a = 1 - (now - f.t) / 650;
-    ctx.save();
-    if (f.p.placed) ctx.translate(f.p.cx, f.p.cy);
-    else { ctx.translate(f.p.x, f.p.y); if (f.p.a) ctx.rotate(f.p.a); }
-    ctx.lineWidth = (2 + 6 * a) / s; ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineJoin = 'round'; ctx.stroke(f.p.path);
-    ctx.restore(); anim = true;
-  });
-
-  const vx0 = -view.x / s, vy0 = -view.y / s, vx1 = (VW - view.x) / s, vy1 = (VH - view.y) / s;
+  // Плавная интерполяция вращения
   const kk = 1 - Math.exp(-dt * 20);
   for (const p of loose) {
     const ta = p.rot * Math.PI / 2;
-    if (p.a !== ta) { const d = ta - p.a; if (Math.abs(d) < .002) p.a = ta; else { p.a += d * kk; anim = true; } }
-    if (p.x + p.rad < vx0 || p.x - p.rad > vx1 || p.y + p.rad < vy0 || p.y - p.rad > vy1) continue;
-    ctx.save(); ctx.translate(p.x, p.y); if (p.a) ctx.rotate(p.a);
-    ctx.drawImage(p.bmp, -p.ox, -p.oy);
-    if (p === hint) {
-      ctx.lineWidth = 4 / s; ctx.strokeStyle = `rgba(255,215,0,${.3 + .7 * blink})`; ctx.lineJoin = 'round'; ctx.stroke(p.path);
+    if (p.a !== ta) {
+      const d = ta - p.a;
+      if (Math.abs(d) < .002) p.a = ta;
+      else { p.a += d * kk; anim = true; }
     }
-    ctx.restore();
+  }
+
+  // БЫСТРЫЙ РЕЖИМ (ПРИ ДРАГЕ): 1 вызов drawImage для всего стола + только активная группа
+  if (isDraggingActive && dragCacheCanvas && dragTarget) {
+    ctx.drawImage(dragCacheCanvas, 0, 0);
+
+    ctx.setTransform(DPR * s, 0, 0, DPR * s, DPR * view.x, DPR * view.y);
+    ctx.imageSmoothingQuality = 'high';
+    for (const p of dragTarget.group.pieces) {
+      drawPiece(ctx, p, game.src, game.cell, true);
+    }
+  } else {
+    // ОБЫЧНЫЙ РЕЖИМ: Отрисовка по требованию из единого атласа
+    ctx.setTransform(DPR * s, 0, 0, DPR * s, DPR * view.x, DPR * view.y);
+    ctx.imageSmoothingQuality = 'high';
+
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, 0, W, H);
+    if (showGhost) { ctx.globalAlpha = .6; ctx.drawImage(game.ghost, 0, 0, W, H); ctx.globalAlpha = 1; }
+    ctx.drawImage(game.layer, 0, 0);
+    ctx.lineWidth = 1.5 / s; ctx.strokeStyle = 'rgba(255,255,255,.3)';
+    ctx.setLineDash([8 / s, 5 / s]); ctx.strokeRect(0, 0, W, H); ctx.setLineDash([]);
+    if (showEdges) {
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 3 / s; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.stroke(game.edges);
+      ctx.lineWidth = 1.1 / s; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke(game.edges);
+    }
+
+    const blink = .5 + .5 * Math.sin(now / 160);
+    if (hint) {
+      ctx.save(); ctx.translate(hint.cx, hint.cy);
+      ctx.fillStyle = `rgba(255,215,0,${.12 + .4 * blink})`; ctx.fill(hint.path);
+      ctx.lineWidth = 3 / s; ctx.strokeStyle = `rgba(255,215,0,${.4 + .6 * blink})`; ctx.stroke(hint.path);
+      ctx.restore(); anim = true;
+    }
+
+    const vx0 = -view.x / s, vy0 = -view.y / s, vx1 = (VW - view.x) / s, vy1 = (VH - view.y) / s;
+    for (const p of loose) {
+      if (p.x + p.rad < vx0 || p.x - p.rad > vx1 || p.y + p.rad < vy0 || p.y - p.rad > vy1) continue;
+      drawPiece(ctx, p, game.src, game.cell, false);
+      if (p === hint) {
+        ctx.save(); ctx.translate(p.x, p.y); if (p.a) ctx.rotate(p.a);
+        ctx.lineWidth = 4 / s; ctx.strokeStyle = `rgba(255,215,0,${.3 + .7 * blink})`; ctx.lineJoin = 'round'; ctx.stroke(p.path);
+        ctx.restore();
+      }
+    }
+  }
+
+  // Анимация вспышек стыковки
+  if (flashes.length > 0) {
+    ctx.setTransform(DPR * s, 0, 0, DPR * s, DPR * view.x, DPR * view.y);
+    flashes = flashes.filter(f => now - f.t < 650);
+    flashes.forEach(f => {
+      const a = 1 - (now - f.t) / 650;
+      ctx.save();
+      if (f.p.placed) ctx.translate(f.p.cx, f.p.cy);
+      else { ctx.translate(f.p.x, f.p.y); if (f.p.a) ctx.rotate(f.p.a); }
+      ctx.lineWidth = (2 + 6 * a) / s; ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineJoin = 'round'; ctx.stroke(f.p.path);
+      ctx.restore(); anim = true;
+    });
   }
 
   if (panIndicator) {
@@ -1137,7 +1253,6 @@ function distSqToPolyOutline(x, y, poly) {
   return minD;
 }
 
-// Быстрая смена курсора без расчёта расстояний к сегментам
 function quickHoverTest(wx, wy) {
   for (let i = loose.length - 1; i >= 0; i--) {
     const p = loose[i];
@@ -1151,7 +1266,6 @@ function quickHoverTest(wx, wy) {
   return false;
 }
 
-// Точный захват детали по нажатию (с невидимой рамкой 75px)
 function hitTest(wx, wy) {
   for (let i = loose.length - 1; i >= 0; i--) {
     const p = loose[i], dx = wx - p.x, dy = wy - p.y;
@@ -1191,7 +1305,9 @@ function placeSingle(p, silent = false) {
   if (game && game.placedGrid) game.placedGrid.add(`${p.r},${p.c}`);
   const i = loose.indexOf(p); if (i >= 0) loose.splice(i, 1);
   const g = game.layerCtx;
-  g.save(); g.translate(p.cx, p.cy); g.clip(p.path); g.drawImage(game.src, -p.cx, -p.cy); g.restore();
+  g.save(); g.translate(p.cx, p.cy); g.clip(p.path);
+  g.drawImage(game.src, p.sx, p.sy, p.sw, p.sh, p.dx, p.dy, p.sw, p.sh);
+  g.restore();
   g.save(); g.translate(p.cx, p.cy); g.lineWidth = Math.max(.8, game.cell * .006); g.strokeStyle = 'rgba(0,0,0,.22)'; g.lineJoin = 'round'; g.stroke(p.path); g.restore();
   if (!silent) flashes.push({ p, t: performance.now() });
   game.placed++;
@@ -1284,6 +1400,7 @@ function checkGroupMerge(group) {
 function rotateGroup(group, pivot, dir) {
   if (!game) return;
   if (!game.rotation) { toast('Rotation is disabled in this game (start a new game)'); return; }
+  clearDragBackground();
   const ang = dir * Math.PI / 2;
   const cos = Math.round(Math.cos(ang)), sin = Math.round(Math.sin(ang));
   for (const pc of group.pieces) {
@@ -1350,6 +1467,7 @@ cv.addEventListener('pointerdown', e => {
   } else if (pointers.size === 2) {
     clearTimeout(lpTimer);
     if (mode === 'piece' && dragTarget) {
+      clearDragBackground();
       if (!checkGroupSnapToBoard(dragTarget.group) && joinNearby) checkGroupMerge(dragTarget.group);
     }
     dragTarget = null; downInfo = null; panIndicator = null;
@@ -1369,11 +1487,16 @@ cv.addEventListener('pointermove', e => {
   const px = pt.x, py = pt.y;
   pt.x = e.clientX; pt.y = e.clientY;
   const thr = e.pointerType === 'mouse' ? 3 : 8;
+
   if ((mode === 'pending' || mode === 'pendingPan') && downInfo && Math.hypot(pt.x - downInfo.x, pt.y - downInfo.y) > thr) {
     clearTimeout(lpTimer);
     mode = mode === 'pending' ? 'piece' : 'pan';
     cv.style.cursor = mode === 'piece' ? 'grabbing' : 'move';
+    if (mode === 'piece' && dragTarget) {
+      bakeDragBackground(dragTarget.group);
+    }
   }
+
   if (mode === 'piece' && dragTarget) {
     const w = s2w(pt.x, pt.y);
     dragOffsets.forEach(o => { o.piece.x = w.x + o.dx; o.piece.y = w.y + o.dy; });
@@ -1395,7 +1518,9 @@ function onUp(e) {
   if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
   clearTimeout(lpTimer);
+
   if (mode === 'piece' && dragTarget) {
+    clearDragBackground();
     const g = dragTarget.group;
     dragTarget = null;
     if (!checkGroupSnapToBoard(g) && joinNearby) checkGroupMerge(g);
@@ -1412,7 +1537,9 @@ function onUp(e) {
   } else if (mode === 'pinch' && pointers.size === 1) {
     mode = 'pan';
   }
+
   if (pointers.size === 0) {
+    clearDragBackground();
     mode = 'none'; dragTarget = null; downInfo = null; panIndicator = null; pinch = null;
     cv.style.cursor = ''; requestRender();
   }
@@ -1445,6 +1572,7 @@ function updateHUD() {
 setInterval(updateHUD, 500);
 
 function win() {
+  clearDragBackground();
   game.done = true; game.endTime = performance.now(); updateHUD();
   clearSessionStorage();
   $('#winTxt').textContent = `${game.total} pieces in ${fmtTime(game.endTime - game.start)}`;
@@ -1711,7 +1839,7 @@ $('#forgetBtn').onclick = async () => {
       pending = { img: nextItem.img, isUser: true };
       $('#dlgTitle').textContent = `Puzzle (${playlistIndex + 1} of ${playlist.length})`;
       regenCuts();
-      toast(`Image was revmoved. ${playlist.length} images left`);
+      toast(`Image was removed. ${playlist.length} images left`);
     } else {
       playlistIndex = 0;
       pending = { img: makeRandomImage(), isUser: false };
